@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -30,19 +30,59 @@ async def usersjson():
 async def users():
     return users_list
 
-@app.get("/users/{id}")
+@app.get("/user/{id}")
 async def user(id: int):
-    try:
-        user = filter(lambda user :  user.id == id, users_list)
-        return list(user)[0]
-    except:
-        return {"Error":"Not valid id"}
+    search_user(id)
     
 
-@app.get("/user")
+@app.get("/user/")
 async def user(id: int):
     try:
         user = filter(lambda user :  user.id == id, users_list)
         return list(user)[0]
     except:
         return {"Error":"Not valid id"}
+
+@app.post("/user/", response_model=User, status_code=201)
+async def user(user: User): # automaticamente convierte json a objeto tipo User
+    #agregarlo a la base de datos
+    if type(search_user(user.id)) == User:
+        raise HTTPException(404, detail="User already exists")
+        # return {"Error":"User already exists"}
+    add_user(user)
+    return user
+
+@app.put("/user/")
+async def user(user: User):
+
+    for index in range(0,len(users_list)):
+        if users_list[index].id == user.id:
+            users_list[index] = user
+            return {"User edited" : user}
+    
+    return {"Error" : "User not found"}
+
+@app.delete("/user/{id}")
+async def user(id: int):
+    dropped_user = delete_user(id)
+    if dropped_user is False:
+        return {"Error":"User not found"}
+    return dropped_user
+
+
+def delete_user(id):
+    for index, user in enumerate(users_list):
+        if id == user.id:
+            return users_list.pop(index)
+    return False
+
+
+def search_user(id):
+    try:
+        user = filter(lambda user :  user.id == id, users_list)
+        return list(user)[0]
+    except:
+        return {"Error":"Not valid id"}
+
+def add_user(user):
+    users_list.append(user)
